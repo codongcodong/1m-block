@@ -1,7 +1,7 @@
 1m-block
 =====  
 
-syntax : 1m-block \<site list file\>
+syntax : 1m-block \<site list file\>  
 sample : 1m-block top-1m.txt
 
 ## example
