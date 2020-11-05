@@ -37,34 +37,52 @@ bool isTarget(const u_char* packet, int pktLen){
     if(ntohs(tcp_hdr->th_dport)!=80){                        //is it a HTTP request?
         return false;
     }
-    int tcpLen = ((*((char*)tcp_hdr+12))&0xF0)>>2;  	    //caculate the length of tcp header
+    int tcpLen = ((*((char*)tcp_hdr+12))&0xF0)>>2;  	    	//caculate the length of tcp header
 
-    const char* payload = (char*)tcp_hdr + tcpLen;
+    char* payload = (char*)tcp_hdr + tcpLen;
     int payloadLen = totalLen - ipLen - tcpLen;
 
-    if(payloadLen==0){                                      //TCP SYN/ACK segment
+    if(payloadLen==0){                                      	//TCP SYN/ACK segment
         return false;
     }
 
+	if(payload[0]=='\r' && payload[1]=='\n'){
+		payload += 2;
+	} 
+
+	char* context;
+	char* method = strtok_r(payload, " ", &context);			//parse request method
+	if(method==NULL){
+		return false;
+	}
+	if(strcmp(method,"GET") && strcmp(method,"POST")){			//neither GET nor POST
+		return false;
+	}
+
+	char* ptr  = strstr(context,"\r\n");						//pointer for headers
+	if(ptr==NULL){
+		return false;
+	}
+
     char hostname[256];
-    const char* ptr = strstr(payload,"\r\nHost: ") + 8;     //get the address of Host name
+	while((ptr = strstr(ptr,"\r\nHost: "))!=NULL){
+		ptr += 8;     											//get the address of Host name
 
-    for(int i=0;i<255;i++){
-        if(ptr[i]=='\r'){
-            hostname[i] = 0;
-            break;
-        }
-        else
-            hostname[i] = ptr[i];
-    }
-    hostname[255] = 0;
-    printf("Host: %s\n",hostname);
-
-    if(targets->find(hostname)!=targets->end()){
-        puts("Matches drop target, packet dropped");
-        return true;
-    }
-
+		for(int i=0;i<255;i++){
+			if(ptr[i]=='\r'){
+				hostname[i] = 0;
+				break;
+			}
+			else
+				hostname[i] = ptr[i];
+		}
+		hostname[255] = 0;
+		if(targets->find(hostname)!=targets->end()){
+			printf("Host: %s\n",hostname);
+			puts("Matches drop target, packet dropped");
+			return true;
+    	}
+	}
     return false;
 }
 
